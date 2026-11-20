@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.service</a> &gt; <span class="el_source">JwtService.java</span></div><h1>JwtService.java</h1><pre class="source lang-java linenums">package com.shopwise.app.service;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Collection;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.stereotype.Service;
+
+@Service
+public class JwtService {
+
+	private static final String ISSUER = &quot;shopwise&quot;;
+
+	private final JwtEncoder jwtEncoder;
+	private final long expirationMinutes;
+
+	public JwtService(JwtEncoder jwtEncoder,
+<span class="fc" id="L26">			@Value(&quot;${app.jwt.expiration-minutes:60}&quot;) long expirationMinutes) {</span>
+<span class="fc" id="L27">		this.jwtEncoder = jwtEncoder;</span>
+<span class="fc" id="L28">		this.expirationMinutes = expirationMinutes;</span>
+<span class="fc" id="L29">	}</span>
+
+	public String generateToken(String username, Collection&lt;? extends GrantedAuthority&gt; authorities) {
+<span class="nc" id="L32">		Instant now = Instant.now();</span>
+
+		// Seuls les rôles sont retenus : Spring ajoute aussi des &quot;facteurs&quot;
+		// (FACTOR_PASSWORD, FACTOR_BEARER) qui ne sont pas des rôles.
+		// Rôles sans préfixe : &quot;ROLE_ADMIN&quot; devient &quot;ADMIN&quot; dans le claim
+<span class="nc" id="L37">		List&lt;String&gt; roles = authorities.stream()</span>
+<span class="nc" id="L38">				.map(GrantedAuthority::getAuthority)</span>
+<span class="nc" id="L39">				.filter(a -&gt; a.startsWith(&quot;ROLE_&quot;))</span>
+<span class="nc" id="L40">				.map(a -&gt; a.substring(&quot;ROLE_&quot;.length()))</span>
+<span class="nc" id="L41">				.toList();</span>
+
+<span class="nc" id="L43">		JwtClaimsSet claims = JwtClaimsSet.builder()</span>
+<span class="nc" id="L44">				.issuer(ISSUER)</span>
+<span class="nc" id="L45">				.subject(username)</span>
+<span class="nc" id="L46">				.issuedAt(now)</span>
+<span class="nc" id="L47">				.expiresAt(now.plus(expirationMinutes, ChronoUnit.MINUTES))</span>
+<span class="nc" id="L48">				.claim(&quot;roles&quot;, roles)</span>
+<span class="nc" id="L49">				.build();</span>
+
+<span class="nc" id="L51">		JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();</span>
+
+<span class="nc" id="L53">		return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();</span>
+	}
+
+	public long getExpirationSeconds() {
+<span class="nc" id="L57">		return expirationMinutes * 60;</span>
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

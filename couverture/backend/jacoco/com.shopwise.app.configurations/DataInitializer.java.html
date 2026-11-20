@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DataInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.configurations</a> &gt; <span class="el_source">DataInitializer.java</span></div><h1>DataInitializer.java</h1><pre class="source lang-java linenums">package com.shopwise.app.configurations;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import com.shopwise.app.entity.User;
+import com.shopwise.app.repository.UserRepository;
+
+// Crée un compte administrateur au démarrage s'il n'existe pas (dev uniquement).
+// Le mot de passe vient de app.seed.admin-password, avec &quot;admin&quot; par défaut.
+@Configuration
+<span class="fc" id="L15">public class DataInitializer {</span>
+
+	@Bean
+	public CommandLineRunner seedAdminUser(UserRepository userRepository,
+			PasswordEncoder passwordEncoder,
+			@Value(&quot;${app.seed.admin-password:admin}&quot;) String adminPassword) {
+<span class="fc" id="L21">		return args -&gt; {</span>
+<span class="pc bpc" id="L22" title="1 of 2 branches missed.">			if (userRepository.findByUsername(&quot;admin&quot;).isEmpty()) {</span>
+<span class="fc" id="L23">				userRepository.save(new User(&quot;admin&quot;, passwordEncoder.encode(adminPassword), &quot;ADMIN&quot;));</span>
+			}
+<span class="fc" id="L25">		};</span>
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

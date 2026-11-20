@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CreerVenteRequest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.dto.request</a> &gt; <span class="el_source">CreerVenteRequest.java</span></div><h1>CreerVenteRequest.java</h1><pre class="source lang-java linenums">package com.shopwise.app.dto.request;
+
+import java.time.LocalDate;
+
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Positive;
+
+/**
+ * Création d'une vente à partir d'un produit et d'un utilisateur (acheteur).
+ * Le prix unitaire est celui du produit.
+ */
+<span class="nc" id="L13">public record CreerVenteRequest(</span>
+		@NotNull(message = &quot;Le produit est obligatoire&quot;)
+		Long productId,
+
+		@NotNull(message = &quot;L'utilisateur est obligatoire&quot;)
+		Long userId,
+
+		@NotNull(message = &quot;La quantité est obligatoire&quot;)
+		@Positive(message = &quot;La quantité doit être supérieure à 0&quot;)
+		Integer quantiteProduit,
+
+		@NotNull(message = &quot;La boutique est obligatoire&quot;)
+		Long boutiqueId,
+
+		@NotNull(message = &quot;La date d'achat est obligatoire&quot;)
+		@PastOrPresent(message = &quot;La date d'achat ne peut pas être dans le futur&quot;)
+		LocalDate dateAchat,
+
+		// Optionnel : null = pas de réduction
+		Long discountId) {
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
