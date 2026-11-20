@@ -1,0 +1,15 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shopwise-app:latest
+    container_name: shopwise-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      # Obligatoire : refuse de démarrer si la clé n'est pas fournie
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?APP_JWT_SECRET doit être défini}
+      APP_JWT_EXPIRATION_MINUTES: ${APP_JWT_EXPIRATION_MINUTES:-60}
+    restart: unless-stopped

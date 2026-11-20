@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Vente.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.entity</a> &gt; <span class="el_source">Vente.java</span></div><h1>Vente.java</h1><pre class="source lang-java linenums">package com.shopwise.app.entity;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+
+/*
+ * Racine de composition : Vente possède ses LigneVente.
+ * Les lignes ne sont créées et supprimées que par cette classe.
+ */
+@Entity
+@Table(name = &quot;VENTES&quot;)
+public class Vente {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	// orphanRemoval : une ligne retirée de la liste est supprimée en base
+<span class="fc" id="L32">	@OneToMany(mappedBy = &quot;vente&quot;, cascade = CascadeType.ALL, orphanRemoval = true)</span>
+	private List&lt;LigneVente&gt; lignes = new ArrayList&lt;&gt;();
+
+	// FK vers Boutique : pas encore d'entité Boutique, simple colonne pour l'instant
+	@Column(name = &quot;boutique_id&quot;, nullable = false)
+	private Long boutiqueId;
+
+	// FK vers DISCOUNT : optionnelle, toutes les ventes n'ont pas de réduction
+	@ManyToOne
+	@JoinColumn(name = &quot;discount_id&quot;)
+	private Discount discount;
+
+	// Acheteur de la vente. Nullable : les ventes créées sans acheteur restent acceptées.
+	@ManyToOne
+	@JoinColumn(name = &quot;user_id&quot;)
+	private User user;
+
+	@Column(name = &quot;date_achat&quot;, nullable = false)
+	private LocalDate dateAchat;
+
+	// Calculés à partir des lignes (voir VenteService.recalculerTotaux)
+<span class="fc" id="L53">	@Column(name = &quot;quantite_totale&quot;, nullable = false)</span>
+<span class="fc" id="L54">	private Integer quantiteTotale = 0;</span>
+
+<span class="fc" id="L56">	@Column(nullable = false)</span>
+<span class="fc" id="L57">	private Integer total = 0;</span>
+
+<span class="fc" id="L59">	@Column(nullable = false)</span>
+<span class="fc" id="L60">	private Float prix = 0f;</span>
+
+	// Requis par JPA uniquement
+<span class="fc" id="L63">	protected Vente() {</span>
+<span class="fc" id="L64">	}</span>
+
+<span class="fc" id="L66">	public Vente(Long boutiqueId, Discount discount, LocalDate dateAchat) {</span>
+<span class="fc" id="L67">		this.boutiqueId = boutiqueId;</span>
+<span class="fc" id="L68">		this.discount = discount;</span>
+<span class="fc" id="L69">		this.dateAchat = dateAchat;</span>
+<span class="fc" id="L70">	}</span>
+
+	// Seul moyen de créer une ligne : elle est rattachée à cette vente
+	public void ajouterLigne(Product product, Integer quantiteProduit, Integer prix) {
+<span class="fc" id="L74">		lignes.add(new LigneVente(this, product, quantiteProduit, prix));</span>
+<span class="fc" id="L75">	}</span>
+
+	// Remplace une ligne par une nouvelle, à la même position (l'ancienne est supprimée via orphanRemoval)
+	public void remplacerLigne(Long ligneId, Product product, Integer quantiteProduit, Integer prix) {
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">		for (int i = 0; i &lt; lignes.size(); i++) {</span>
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">			if (ligneId.equals(lignes.get(i).getId())) {</span>
+<span class="fc" id="L81">				lignes.set(i, new LigneVente(this, product, quantiteProduit, prix));</span>
+<span class="fc" id="L82">				return;</span>
+			}
+		}
+<span class="nc" id="L85">	}</span>
+
+	// Retire une ligne de la vente (elle disparaît en base via orphanRemoval)
+	public void supprimerLigne(Long ligneId) {
+<span class="fc" id="L89">		lignes.removeIf(ligne -&gt; ligneId.equals(ligne.getId()));</span>
+<span class="fc" id="L90">	}</span>
+
+	// Supprime toutes les lignes (elles disparaissent en base via orphanRemoval)
+	public void viderLignes() {
+<span class="nc" id="L94">		lignes.clear();</span>
+<span class="nc" id="L95">	}</span>
+
+	public Long getId() {
+<span class="fc" id="L98">		return id;</span>
+	}
+
+	// Vue non modifiable : on ne peut pas ajouter de ligne en contournant ajouterLigne
+	public List&lt;LigneVente&gt; getLignes() {
+<span class="fc" id="L103">		return Collections.unmodifiableList(lignes);</span>
+	}
+
+	public Long getBoutiqueId() {
+<span class="fc" id="L107">		return boutiqueId;</span>
+	}
+
+	public void setBoutiqueId(Long boutiqueId) {
+<span class="nc" id="L111">		this.boutiqueId = boutiqueId;</span>
+<span class="nc" id="L112">	}</span>
+
+	public Discount getDiscount() {
+<span class="fc" id="L115">		return discount;</span>
+	}
+
+	public void setDiscount(Discount discount) {
+<span class="nc" id="L119">		this.discount = discount;</span>
+<span class="nc" id="L120">	}</span>
+
+	public User getUser() {
+<span class="fc" id="L123">		return user;</span>
+	}
+
+	public void setUser(User user) {
+<span class="nc" id="L127">		this.user = user;</span>
+<span class="nc" id="L128">	}</span>
+
+	public LocalDate getDateAchat() {
+<span class="fc" id="L131">		return dateAchat;</span>
+	}
+
+	public void setDateAchat(LocalDate dateAchat) {
+<span class="nc" id="L135">		this.dateAchat = dateAchat;</span>
+<span class="nc" id="L136">	}</span>
+
+	public Integer getQuantiteTotale() {
+<span class="fc" id="L139">		return quantiteTotale;</span>
+	}
+
+	public void setQuantiteTotale(Integer quantiteTotale) {
+<span class="fc" id="L143">		this.quantiteTotale = quantiteTotale;</span>
+<span class="fc" id="L144">	}</span>
+
+	public Integer getTotal() {
+<span class="fc" id="L147">		return total;</span>
+	}
+
+	public void setTotal(Integer total) {
+<span class="fc" id="L151">		this.total = total;</span>
+<span class="fc" id="L152">	}</span>
+
+	public Float getPrix() {
+<span class="fc" id="L155">		return prix;</span>
+	}
+
+	public void setPrix(Float prix) {
+<span class="fc" id="L159">		this.prix = prix;</span>
+<span class="fc" id="L160">	}</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

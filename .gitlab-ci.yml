@@ -1,0 +1,42 @@
+# Pipeline CI du backend ShopWise : build puis tests d'intégration (Java 21, Maven)
+
+image: maven:3.9-eclipse-temurin-21
+
+variables:
+  # Dépôt Maven local dans le projet, pour pouvoir le mettre en cache entre les jobs
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Xmx1024m"
+  MAVEN_CLI_OPTS: "-B --no-transfer-progress"
+
+cache:
+  key: maven-$CI_COMMIT_REF_SLUG
+  paths:
+    - .m2/repository/
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS clean package -DskipTests
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 1 week
+
+integration-tests:
+  stage: test
+  script:
+    # verify lance les tests (Surefire) ; l'application H2 en mémoire ne nécessite aucun service externe
+    - mvn $MAVEN_CLI_OPTS verify
+  # Taux de couverture affiché dans la pipeline (ligne "Total" du rapport JaCoCo)
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  artifacts:
+    when: always
+    reports:
+      # Résultats des tests dans la vue de la pipeline / des merge requests
+      junit: couverture/backend/tests/TEST-*.xml
+    paths:
+      - couverture/backend/
+    expire_in: 1 week

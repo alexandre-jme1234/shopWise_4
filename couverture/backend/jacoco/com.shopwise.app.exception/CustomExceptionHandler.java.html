@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CustomExceptionHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.exception</a> &gt; <span class="el_source">CustomExceptionHandler.java</span></div><h1>CustomExceptionHandler.java</h1><pre class="source lang-java linenums">package com.shopwise.app.exception;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+@ControllerAdvice
+<span class="fc" id="L23">public class CustomExceptionHandler {</span>
+
+<span class="fc" id="L25">	private static final Logger log = LoggerFactory.getLogger(CustomExceptionHandler.class);</span>
+
+	@ExceptionHandler(VenteException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleVente(VenteException ex, HttpServletRequest request) {
+<span class="nc" id="L29">		return ResponseEntity.status(ex.getStatus()).body(ErrorResponse.ofVente(</span>
+<span class="nc" id="L30">				ex.getStatus(), ex.getMessage(), request.getRequestURI(),</span>
+<span class="nc" id="L31">				ex.getVenteId(), ex.getLigneVenteId()));</span>
+	}
+
+	// Paramètre de requête invalide, ex. tri sur un champ inconnu
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleIllegalArgument(IllegalArgumentException ex,
+			HttpServletRequest request) {
+<span class="nc" id="L38">		return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);</span>
+	}
+
+	@ExceptionHandler(NotFoundException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleNotFound(NotFoundException ex, HttpServletRequest request) {
+<span class="fc" id="L43">		return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);</span>
+	}
+
+	@ExceptionHandler(UserAlreadyExistsException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleUserAlreadyExists(UserAlreadyExistsException ex,
+			HttpServletRequest request) {
+<span class="nc" id="L49">		return build(HttpStatus.CONFLICT, ex.getMessage(), request);</span>
+	}
+
+	@ExceptionHandler(ForbiddenRoleException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleForbiddenRole(ForbiddenRoleException ex,
+			HttpServletRequest request) {
+<span class="nc" id="L55">		return build(HttpStatus.FORBIDDEN, ex.getMessage(), request);</span>
+	}
+
+	// Suppression d'une ligne référencée par une clé étrangère (ex. discount utilisé par une vente)
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleDataIntegrity(DataIntegrityViolationException ex,
+			HttpServletRequest request) {
+<span class="nc" id="L62">		return build(HttpStatus.CONFLICT, &quot;Opération impossible : des données liées existent&quot;, request);</span>
+	}
+
+	// Erreurs de validation (@Valid) : une entrée par champ
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleValidation(MethodArgumentNotValidException ex,
+			HttpServletRequest request) {
+<span class="nc" id="L69">		Map&lt;String, String&gt; fieldErrors = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L70">		ex.getBindingResult().getAllErrors().forEach(error -&gt; {</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">			String key = error instanceof FieldError fe ? fe.getField() : error.getObjectName();</span>
+<span class="nc" id="L72">			fieldErrors.putIfAbsent(key, error.getDefaultMessage());</span>
+<span class="nc" id="L73">		});</span>
+<span class="nc" id="L74">		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(</span>
+<span class="nc" id="L75">				ErrorResponse.withFieldErrors(HttpStatus.BAD_REQUEST,</span>
+<span class="nc" id="L76">						&quot;La validation a échoué&quot;, request.getRequestURI(), fieldErrors));</span>
+	}
+
+	// JSON mal formé ou type incompatible dans le corps de la requête
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleUnreadable(HttpMessageNotReadableException ex,
+			HttpServletRequest request) {
+<span class="nc" id="L83">		return build(HttpStatus.BAD_REQUEST, &quot;Corps de requête invalide ou mal formé&quot;, request);</span>
+	}
+
+	// Paramètre d'URL de mauvais type (ex. /api/products/abc)
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleTypeMismatch(MethodArgumentTypeMismatchException ex,
+			HttpServletRequest request) {
+<span class="nc" id="L90">		return build(HttpStatus.BAD_REQUEST,</span>
+<span class="nc" id="L91">				&quot;Paramètre invalide : &quot; + ex.getName(), request);</span>
+	}
+
+	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
+			HttpServletRequest request) {
+<span class="nc" id="L97">		return build(HttpStatus.METHOD_NOT_ALLOWED,</span>
+<span class="nc" id="L98">				&quot;Méthode &quot; + ex.getMethod() + &quot; non supportée sur cette ressource&quot;, request);</span>
+	}
+
+	@ExceptionHandler(NoResourceFoundException.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleNoResource(NoResourceFoundException ex,
+			HttpServletRequest request) {
+<span class="nc" id="L104">		return build(HttpStatus.NOT_FOUND, &quot;Ressource introuvable&quot;, request);</span>
+	}
+
+	// Filet de sécurité : jamais de détail technique dans la réponse
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity&lt;ErrorResponse&gt; handleAll(Exception ex, HttpServletRequest request) {
+<span class="nc" id="L110">		log.error(&quot;Erreur inattendue sur {}&quot;, request.getRequestURI(), ex);</span>
+<span class="nc" id="L111">		return build(HttpStatus.INTERNAL_SERVER_ERROR, &quot;Une erreur inattendue est survenue&quot;, request);</span>
+	}
+
+	private ResponseEntity&lt;ErrorResponse&gt; build(HttpStatus status, String message, HttpServletRequest request) {
+<span class="fc" id="L115">		return ResponseEntity.status(status)</span>
+<span class="fc" id="L116">				.body(ErrorResponse.of(status, message, request.getRequestURI()));</span>
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

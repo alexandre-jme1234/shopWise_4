@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.service</a> &gt; <span class="el_source">UserService.java</span></div><h1>UserService.java</h1><pre class="source lang-java linenums">package com.shopwise.app.service;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.shopwise.app.dto.request.SigninRequest;
+import com.shopwise.app.entity.User;
+import com.shopwise.app.exception.ForbiddenRoleException;
+import com.shopwise.app.exception.UserAlreadyExistsException;
+import com.shopwise.app.repository.UserRepository;
+
+@Service
+@Transactional
+public class UserService {
+
+	private static final String DEFAULT_ROLE = &quot;USER&quot;;
+	private static final String ADMIN_ROLE = &quot;ADMIN&quot;;
+
+	private final UserRepository userRepository;
+	private final PasswordEncoder passwordEncoder;
+
+<span class="fc" id="L24">	public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {</span>
+<span class="fc" id="L25">		this.userRepository = userRepository;</span>
+<span class="fc" id="L26">		this.passwordEncoder = passwordEncoder;</span>
+<span class="fc" id="L27">	}</span>
+
+	/**
+	 * @param requesterIsAdmin true si la requête est authentifiée par un administrateur
+	 */
+	public User signin(SigninRequest request, boolean requesterIsAdmin) {
+<span class="nc bnc" id="L33" title="All 2 branches missed.">		String role = request.getRole() == null ? DEFAULT_ROLE : request.getRole();</span>
+
+		// Empêche l'escalade de privilèges : seul un admin peut créer un admin
+<span class="nc bnc" id="L36" title="All 4 branches missed.">		if (ADMIN_ROLE.equals(role) &amp;&amp; !requesterIsAdmin) {</span>
+<span class="nc" id="L37">			throw new ForbiddenRoleException();</span>
+		}
+
+<span class="nc bnc" id="L40" title="All 2 branches missed.">		if (userRepository.findByUsername(request.getUsername()).isPresent()) {</span>
+<span class="nc" id="L41">			throw new UserAlreadyExistsException(request.getUsername());</span>
+		}
+
+<span class="nc" id="L44">		User user = new User(</span>
+<span class="nc" id="L45">				request.getUsername(),</span>
+<span class="nc" id="L46">				passwordEncoder.encode(request.getPassword()),</span>
+				role);
+
+		try {
+<span class="nc" id="L50">			return userRepository.save(user);</span>
+<span class="nc" id="L51">		} catch (DataIntegrityViolationException ex) {</span>
+			// Filet de sécurité : deux inscriptions simultanées du même nom
+			// passent la vérification ci-dessus, mais l'index unique les refuse.
+<span class="nc" id="L54">			throw new UserAlreadyExistsException(request.getUsername());</span>
+		}
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

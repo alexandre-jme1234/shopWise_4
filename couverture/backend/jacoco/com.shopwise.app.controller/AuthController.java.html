@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.controller</a> &gt; <span class="el_source">AuthController.java</span></div><h1>AuthController.java</h1><pre class="source lang-java linenums">package com.shopwise.app.controller;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.shopwise.app.dto.request.SigninRequest;
+import com.shopwise.app.entity.User;
+import com.shopwise.app.service.JwtService;
+import com.shopwise.app.service.UserService;
+
+import jakarta.validation.Valid;
+
+// POST /api/auth/login : authentification Basic, puis renvoie un token Bearer (JWT).
+// POST /api/auth/signin : inscription publique (route ouverte dans SecurityConfig).
+// POST /api/auth/logout : géré par la configuration logout de SecurityConfig.
+@RestController
+@RequestMapping(&quot;/api/auth&quot;)
+public class AuthController {
+
+	private final UserService userService;
+	private final JwtService jwtService;
+
+<span class="fc" id="L32">	public AuthController(UserService userService, JwtService jwtService) {</span>
+<span class="fc" id="L33">		this.userService = userService;</span>
+<span class="fc" id="L34">		this.jwtService = jwtService;</span>
+<span class="fc" id="L35">	}</span>
+
+	// Accepte Basic (identifiants) ou Bearer (token existant, pour le renouveler).
+	// Dans les deux cas, Authentication contient le nom et les rôles de l'utilisateur.
+	@PostMapping(&quot;/login&quot;)
+	public ResponseEntity&lt;Map&lt;String, Object&gt;&gt; login(Authentication authentication) {
+		// Seuls les rôles (ROLE_*) sont exposés, pas les facteurs FACTOR_*
+<span class="nc" id="L42">		List&lt;String&gt; roles = authentication.getAuthorities().stream()</span>
+<span class="nc" id="L43">				.map(GrantedAuthority::getAuthority)</span>
+<span class="nc" id="L44">				.filter(a -&gt; a.startsWith(&quot;ROLE_&quot;))</span>
+<span class="nc" id="L45">				.toList();</span>
+
+<span class="nc" id="L47">		String token = jwtService.generateToken(authentication.getName(), authentication.getAuthorities());</span>
+
+<span class="nc" id="L49">		return ResponseEntity.ok(Map.of(</span>
+				&quot;accessToken&quot;, token,
+				&quot;tokenType&quot;, &quot;Bearer&quot;,
+<span class="nc" id="L52">				&quot;expiresIn&quot;, jwtService.getExpirationSeconds(),</span>
+<span class="nc" id="L53">				&quot;username&quot;, authentication.getName(),</span>
+				&quot;roles&quot;, roles));
+	}
+
+	@PostMapping(&quot;/signin&quot;)
+	public ResponseEntity&lt;Map&lt;String, Object&gt;&gt; signin(
+			@Valid @RequestBody SigninRequest request,
+			Authentication authentication) {
+
+		// Fonctionne avec Basic comme avec Bearer. Anonyme : pas d'ADMIN.
+<span class="nc bnc" id="L63" title="All 4 branches missed.">		boolean requesterIsAdmin = authentication != null &amp;&amp; authentication.isAuthenticated()</span>
+<span class="nc" id="L64">				&amp;&amp; authentication.getAuthorities().stream()</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">						.anyMatch(a -&gt; &quot;ROLE_ADMIN&quot;.equals(a.getAuthority()));</span>
+
+<span class="nc" id="L67">		User created = userService.signin(request, requesterIsAdmin);</span>
+
+		// Le mot de passe (même haché) n'est jamais renvoyé
+<span class="nc" id="L70">		return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(</span>
+<span class="nc" id="L71">				&quot;username&quot;, created.getUsername(),</span>
+<span class="nc" id="L72">				&quot;role&quot;, created.getRole()));</span>
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

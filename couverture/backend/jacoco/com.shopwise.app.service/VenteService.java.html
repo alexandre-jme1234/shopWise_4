@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VenteService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.service</a> &gt; <span class="el_source">VenteService.java</span></div><h1>VenteService.java</h1><pre class="source lang-java linenums">package com.shopwise.app.service;
+
+import java.math.RoundingMode;
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.shopwise.app.dto.request.CreerVenteRequest;
+import com.shopwise.app.dto.request.LigneVenteRequest;
+import com.shopwise.app.dto.request.VenteRequest;
+import com.shopwise.app.dto.response.VenteResponse;
+import com.shopwise.app.entity.Discount;
+import com.shopwise.app.entity.LigneVente;
+import com.shopwise.app.entity.Product;
+import com.shopwise.app.entity.User;
+import com.shopwise.app.entity.Vente;
+import com.shopwise.app.exception.NotFoundException;
+import com.shopwise.app.exception.VenteException;
+import com.shopwise.app.repository.DiscountRepository;
+import com.shopwise.app.repository.ProductRepository;
+import com.shopwise.app.repository.UserRepository;
+import com.shopwise.app.repository.VenteRepository;
+
+@Service
+@Transactional
+public class VenteService {
+
+	private final VenteRepository venteRepository;
+	private final ProductRepository productRepository;
+	private final DiscountRepository discountRepository;
+	private final UserRepository userRepository;
+
+	public VenteService(VenteRepository venteRepository,
+			ProductRepository productRepository,
+			DiscountRepository discountRepository,
+<span class="fc" id="L39">			UserRepository userRepository) {</span>
+<span class="fc" id="L40">		this.venteRepository = venteRepository;</span>
+<span class="fc" id="L41">		this.productRepository = productRepository;</span>
+<span class="fc" id="L42">		this.discountRepository = discountRepository;</span>
+<span class="fc" id="L43">		this.userRepository = userRepository;</span>
+<span class="fc" id="L44">	}</span>
+
+	/**
+	 * Crée une vente d'un produit pour un utilisateur.
+	 * Le prix unitaire est celui du produit, arrondi à l'entier (LigneVente.prix est un Integer).
+	 */
+	public VenteResponse creerVente(CreerVenteRequest request) {
+<span class="nc" id="L51">		Product product = findProduct(request.productId());</span>
+<span class="nc" id="L52">		User acheteur = userRepository.findById(request.userId())</span>
+<span class="nc" id="L53">				.orElseThrow(() -&gt; new NotFoundException(&quot;User not found&quot;));</span>
+
+<span class="nc" id="L55">		Vente vente = new Vente(request.boutiqueId(), findDiscount(request.discountId()), request.dateAchat());</span>
+<span class="nc" id="L56">		vente.setUser(acheteur);</span>
+<span class="nc" id="L57">		vente.ajouterLigne(product, request.quantiteProduit(),</span>
+<span class="nc" id="L58">				product.getPrice().setScale(0, RoundingMode.HALF_UP).intValueExact());</span>
+<span class="nc" id="L59">		recalculerTotaux(vente);</span>
+<span class="nc" id="L60">		return VenteResponse.from(venteRepository.save(vente));</span>
+	}
+
+	public VenteResponse create(VenteRequest request) {
+<span class="fc" id="L64">		Vente vente = new Vente(request.boutiqueId(), findDiscount(request.discountId()), request.dateAchat());</span>
+<span class="fc" id="L65">		ajouterLignes(vente, request.lignes());</span>
+<span class="fc" id="L66">		recalculerTotaux(vente);</span>
+<span class="fc" id="L67">		return VenteResponse.from(venteRepository.save(vente));</span>
+	}
+
+	@Transactional(readOnly = true)
+	public List&lt;VenteResponse&gt; getAll(String sort) {
+<span class="fc" id="L72">		return venteRepository.findAll(parseSort(sort)).stream()</span>
+<span class="fc" id="L73">				.map(VenteResponse::from)</span>
+<span class="fc" id="L74">				.toList();</span>
+	}
+
+	@Transactional(readOnly = true)
+	public VenteResponse getById(Long id) {
+<span class="nc" id="L79">		return VenteResponse.from(find(id));</span>
+	}
+
+	/**
+	 * Met à jour l'en-tête et remplace les lignes ; quantité, total et prix
+	 * sont recalculés automatiquement à partir des nouvelles lignes.
+	 */
+	public VenteResponse update(Long id, VenteRequest request) {
+<span class="nc" id="L87">		Vente vente = find(id);</span>
+<span class="nc" id="L88">		vente.setBoutiqueId(request.boutiqueId());</span>
+<span class="nc" id="L89">		vente.setDiscount(findDiscount(request.discountId()));</span>
+<span class="nc" id="L90">		vente.setDateAchat(request.dateAchat());</span>
+<span class="nc" id="L91">		vente.viderLignes();</span>
+<span class="nc" id="L92">		ajouterLignes(vente, request.lignes());</span>
+<span class="nc" id="L93">		recalculerTotaux(vente);</span>
+<span class="nc" id="L94">		return VenteResponse.from(venteRepository.save(vente));</span>
+	}
+
+	public void delete(Long id) {
+<span class="nc" id="L98">		venteRepository.delete(find(id));</span>
+<span class="nc" id="L99">		venteRepository.flush();</span>
+<span class="nc" id="L100">	}</span>
+
+	// Les lignes sont créées par la vente elle-même (composition)
+	private void ajouterLignes(Vente vente, List&lt;LigneVenteRequest&gt; requests) {
+<span class="fc bfc" id="L104" title="All 2 branches covered.">		for (LigneVenteRequest r : requests) {</span>
+<span class="fc" id="L105">			vente.ajouterLigne(findProduct(r.productId()), r.quantiteProduit(), r.prix());</span>
+<span class="fc" id="L106">		}</span>
+<span class="fc" id="L107">	}</span>
+
+	private Product findProduct(Long id) {
+<span class="fc" id="L110">		return productRepository.findById(id)</span>
+<span class="pc" id="L111">				.orElseThrow(() -&gt; new NotFoundException(&quot;Product not found&quot;));</span>
+	}
+
+	/**
+	 * Recalcule à partir des lignes de la vente :
+	 *  - quantiteTotale = somme des quantités
+	 *  - total          = somme de (quantité × prix unitaire)
+	 *  - prix           = somme des prix des lignes (prix cumulé)
+	 */
+	private void recalculerTotaux(Vente vente) {
+<span class="fc" id="L121">		int quantiteTotale = 0;</span>
+<span class="fc" id="L122">		int total = 0;</span>
+<span class="fc" id="L123">		float prixCumule = 0f;</span>
+
+<span class="fc bfc" id="L125" title="All 2 branches covered.">		for (LigneVente ligne : vente.getLignes()) {</span>
+<span class="fc" id="L126">			quantiteTotale += ligne.getQuantiteProduit();</span>
+<span class="fc" id="L127">			total += ligne.getQuantiteProduit() * ligne.getPrix();</span>
+<span class="fc" id="L128">			prixCumule += ligne.getPrix();</span>
+<span class="fc" id="L129">		}</span>
+
+<span class="fc" id="L131">		vente.setQuantiteTotale(quantiteTotale);</span>
+<span class="fc" id="L132">		vente.setTotal(total);</span>
+<span class="fc" id="L133">		vente.setPrix(prixCumule);</span>
+<span class="fc" id="L134">	}</span>
+
+	/**
+	 * Supprime une ligne d'une vente : la quantité et le total sont recalculés.
+	 */
+	public VenteResponse supprimerLigne(Long venteId, Long ligneId) {
+<span class="fc" id="L140">		Vente vente = find(venteId);</span>
+<span class="fc" id="L141">		ligneDansVente(vente, ligneId);</span>
+<span class="fc" id="L142">		vente.supprimerLigne(ligneId);</span>
+<span class="fc" id="L143">		recalculerTotaux(vente);</span>
+<span class="fc" id="L144">		return VenteResponse.from(venteRepository.save(vente));</span>
+	}
+
+	public VenteResponse remplacerLigne(Long venteId, Long ligneId, LigneVenteRequest request) {
+<span class="fc" id="L148">		Vente vente = find(venteId);</span>
+<span class="fc" id="L149">		ligneDansVente(vente, ligneId);</span>
+<span class="fc" id="L150">		vente.remplacerLigne(ligneId, findProduct(request.productId()),</span>
+<span class="fc" id="L151">				request.quantiteProduit(), request.prix());</span>
+<span class="fc" id="L152">		recalculerTotaux(vente);</span>
+<span class="fc" id="L153">		return VenteResponse.from(venteRepository.save(vente));</span>
+	}
+
+	private LigneVente ligneDansVente(Vente vente, Long ligneId) {
+<span class="fc" id="L157">		return vente.getLignes().stream()</span>
+<span class="fc" id="L158">				.filter(ligne -&gt; ligneId.equals(ligne.getId()))</span>
+<span class="fc" id="L159">				.findFirst()</span>
+<span class="pc" id="L160">				.orElseThrow(() -&gt; VenteException.ligneIntrouvableDansVente(vente.getId(), ligneId));</span>
+	}
+
+	// Champs sur lesquels on peut trier : &quot;dateAchat,asc&quot; ou &quot;total,desc&quot;
+<span class="fc" id="L164">	private static final Set&lt;String&gt; CHAMPS_TRIABLES =</span>
+<span class="fc" id="L165">			Set.of(&quot;id&quot;, &quot;dateAchat&quot;, &quot;total&quot;, &quot;quantiteTotale&quot;, &quot;prix&quot;, &quot;boutiqueId&quot;);</span>
+
+	private Sort parseSort(String sort) {
+<span class="fc" id="L168">		String[] parts = sort.split(&quot;,&quot;);</span>
+<span class="fc" id="L169">		String champ = parts[0].trim();</span>
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">		if (!CHAMPS_TRIABLES.contains(champ)) {</span>
+<span class="nc" id="L171">			throw new IllegalArgumentException(&quot;Tri impossible sur le champ : &quot; + champ);</span>
+		}
+<span class="pc bpc" id="L173" title="1 of 4 branches missed.">		Sort.Direction direction = parts.length &gt; 1 &amp;&amp; &quot;desc&quot;.equalsIgnoreCase(parts[1].trim())</span>
+<span class="fc" id="L174">				? Sort.Direction.DESC</span>
+<span class="fc" id="L175">				: Sort.Direction.ASC;</span>
+<span class="fc" id="L176">		return Sort.by(direction, champ);</span>
+	}
+
+	private Vente find(Long id) {
+<span class="fc" id="L180">		return venteRepository.findById(id)</span>
+<span class="pc" id="L181">				.orElseThrow(() -&gt; VenteException.venteIntrouvable(id));</span>
+	}
+
+	// Ligne d'une vente précise : erreur si la vente n'existe pas ou si la ligne n'y appartient pas
+	public LigneVente trouverLigne(Long venteId, Long ligneVenteId) {
+<span class="nc" id="L186">		return find(venteId).getLignes().stream()</span>
+<span class="nc" id="L187">				.filter(ligne -&gt; ligne.getId().equals(ligneVenteId))</span>
+<span class="nc" id="L188">				.findFirst()</span>
+<span class="nc" id="L189">				.orElseThrow(() -&gt; VenteException.ligneIntrouvableDansVente(venteId, ligneVenteId));</span>
+	}
+
+	// Retourne null si aucune réduction n'est demandée
+	private Discount findDiscount(Long id) {
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">		if (id == null) {</span>
+<span class="fc" id="L195">			return null;</span>
+		}
+<span class="nc" id="L197">		return discountRepository.findById(id)</span>
+<span class="nc" id="L198">				.orElseThrow(() -&gt; new NotFoundException(&quot;Discount not found&quot;));</span>
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

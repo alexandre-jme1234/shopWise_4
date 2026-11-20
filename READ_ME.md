@@ -76,6 +76,39 @@ Commerçant accès admin Ventes, Boutique.
 | 401 | token invalide |
 | 403 | action a échoué : message explicite. |
 
+## Q5 - Stratégies de tests
+Pourquoi certains tests ?
+Plusieurs nv de tests, tests unitaires, test d'intégrations et tests de dépploiement.
+
+## 1° niveau : TDD & BDD
+Coder résultat attendu pour les fonctionnalités du module de vente avant de coder les méthodes.
+Vérifier que les types sont bien déclarés et respectés dans les méthodes.
+
+#### TDD
+    - vérifier qu'une vente peut contenir plusieurs produits & que le total est calculé automatiquement.
+    - trie des ventes par date
+##### TDD - sécurité authentification
+    - tentative non auth -> HTTP 403
+    - req ss token -> 401
+##### BDD - authentification
+    - codes HTTP sont cohérents (400, 401, 403, 404).
+    - erreurs suivent un format JSON standard
+
+##### TDD - journalisation
+    - erreurs suivent un format JSON standard
+
+## 2° niveau : test d'intégration
+Workflow github qui permet de vérifier que les tests unitaires s'exec bien sur un runner github distants via le .gitlab-ci.yml qui gère l'execution des tests dans le runner.
+
+## 3° niveau : test fonctionnels
+Vérifier que les fonctionnalités répondent bien aux US de l'énoncé.
+tester le mécanisme de sécurité, authentification et login avec SpringSecurity et la génération de Bearer Token.
+
+## test d'API ML
+    - module doit être ds Archi modulaire
+    - recommandations sont calculés à partir des ventes & du catalogue produit.
+    - module puisse évoluer.
+
 
 
 
